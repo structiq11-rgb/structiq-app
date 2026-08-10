@@ -29,7 +29,26 @@ type Expense = {
   expense_date: string;
 };
 
+type AttendanceRow = {
+  id: string;
+  worker_name: string;
+  status: string;
+  attendance_date: string;
+};
+
+type SiteUpdate = {
+  id: string;
+  note: string;
+  update_date: string;
+  created_at: string;
+};
+
 const CATEGORIES = ["Labour", "Materials", "Equipment", "Other"];
+const ATTENDANCE_STATUSES = ["Present", "Absent", "Late"];
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function ProjectDetail() {
   const params = useParams();
@@ -40,22 +59,32 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // budget state
   const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-
-  // add budget line form
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState("");
   const [budgetedAmount, setBudgetedAmount] = useState("");
   const [savingLine, setSavingLine] = useState(false);
   const [lineError, setLineError] = useState("");
-
-  // log expense form
   const [expenseLineId, setExpenseLineId] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [savingExpense, setSavingExpense] = useState(false);
   const [expenseError, setExpenseError] = useState("");
+
+  // attendance state
+  const [attendanceToday, setAttendanceToday] = useState<AttendanceRow[]>([]);
+  const [workerName, setWorkerName] = useState("");
+  const [workerStatus, setWorkerStatus] = useState(ATTENDANCE_STATUSES[0]);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [attendanceError, setAttendanceError] = useState("");
+
+  // site update state
+  const [siteUpdates, setSiteUpdates] = useState<SiteUpdate[]>([]);
+  const [updateNote, setUpdateNote] = useState("");
+  const [savingUpdate, setSavingUpdate] = useState(false);
+  const [updateError, setUpdateError] = useState("");
 
   useEffect(() => {
     load();
@@ -82,6 +111,8 @@ export default function ProjectDetail() {
 
     setProject(data);
     await loadBudget();
+    await loadAttendance();
+    await loadSiteUpdates();
     setLoading(false);
   }
 
@@ -111,6 +142,28 @@ export default function ProjectDetail() {
     if (!expenseLineId && lines && lines.length > 0) {
       setExpenseLineId(lines[0].id);
     }
+  }
+
+  async function loadAttendance() {
+    const { data } = await supabase
+      .from("attendance")
+      .select("id, worker_name, status, attendance_date")
+      .eq("project_id", id)
+      .eq("attendance_date", todayStr())
+      .order("created_at", { ascending: true });
+
+    setAttendanceToday(data || []);
+  }
+
+  async function loadSiteUpdates() {
+    const { data } = await supabase
+      .from("site_updates")
+      .select("id, note, update_date, created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    setSiteUpdates(data || []);
   }
 
   function spentFor(lineId: string) {
@@ -180,6 +233,60 @@ export default function ProjectDetail() {
     await loadBudget();
   }
 
+  async function handleAddAttendance(e: React.FormEvent) {
+    e.preventDefault();
+    setAttendanceError("");
+
+    if (!workerName.trim()) {
+      setAttendanceError("Enter a worker name.");
+      return;
+    }
+
+    setSavingAttendance(true);
+    const { error } = await supabase.from("attendance").insert({
+      project_id: id,
+      worker_name: workerName.trim(),
+      status: workerStatus,
+      attendance_date: todayStr(),
+    });
+    setSavingAttendance(false);
+
+    if (error) {
+      setAttendanceError(error.message);
+      return;
+    }
+
+    setWorkerName("");
+    setWorkerStatus(ATTENDANCE_STATUSES[0]);
+    await loadAttendance();
+  }
+
+  async function handleAddSiteUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    setUpdateError("");
+
+    if (!updateNote.trim()) {
+      setUpdateError("Write a short update before posting.");
+      return;
+    }
+
+    setSavingUpdate(true);
+    const { error } = await supabase.from("site_updates").insert({
+      project_id: id,
+      note: updateNote.trim(),
+      update_date: todayStr(),
+    });
+    setSavingUpdate(false);
+
+    if (error) {
+      setUpdateError(error.message);
+      return;
+    }
+
+    setUpdateNote("");
+    await loadSiteUpdates();
+  }
+
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: 60 }}>
@@ -199,6 +306,10 @@ export default function ProjectDetail() {
 
   const totalBudgeted = budgetLines.reduce((s, l) => s + Number(l.budgeted_amount), 0);
   const totalSpent = budgetLines.reduce((s, l) => s + spentFor(l.id), 0);
+
+  const presentCount = attendanceToday.filter((a) => a.status === "Present").length;
+  const absentCount = attendanceToday.filter((a) => a.status === "Absent").length;
+  const lateCount = attendanceToday.filter((a) => a.status === "Late").length;
 
   return (
     <div className="wide-container">
@@ -222,6 +333,30 @@ export default function ProjectDetail() {
         </p>
       </div>
 
+      {/* TODAY AT A GLANCE */}
+      <h2>Today at a glance</h2>
+      <div className="card" style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A7A4A" }}>{presentCount}</div>
+          <div style={{ fontSize: 12, color: "#666" }}>Present</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#9B2226" }}>{absentCount}</div>
+          <div style={{ fontSize: 12, color: "#666" }}>Absent</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#E87722" }}>{lateCount}</div>
+          <div style={{ fontSize: 12, color: "#666" }}>Late</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#0D1F3C" }}>
+            KES {totalSpent.toLocaleString()}
+          </div>
+          <div style={{ fontSize: 12, color: "#666" }}>Spent so far</div>
+        </div>
+      </div>
+
+      {/* BUDGET VS ACTUAL */}
       <h2>Budget overview</h2>
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
@@ -360,12 +495,89 @@ export default function ProjectDetail() {
         </>
       )}
 
+      {/* DAILY ATTENDANCE */}
+      <h2>Today's attendance — {todayStr()}</h2>
+      <div className="card">
+        <form onSubmit={handleAddAttendance}>
+          <label>Worker name</label>
+          <input value={workerName} onChange={(e) => setWorkerName(e.target.value)} placeholder="e.g. John Mwangi" />
+
+          <label>Status</label>
+          <select value={workerStatus} onChange={(e) => setWorkerStatus(e.target.value)}>
+            {ATTENDANCE_STATUSES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          {attendanceError && <p className="error">{attendanceError}</p>}
+
+          <button type="submit" disabled={savingAttendance}>
+            {savingAttendance ? "Saving..." : "Add worker"}
+          </button>
+        </form>
+      </div>
+
+      {attendanceToday.length === 0 ? (
+        <p className="sub">No one marked yet today.</p>
+      ) : (
+        attendanceToday.map((a) => {
+          const color =
+            a.status === "Present" ? "#1A7A4A" : a.status === "Late" ? "#E87722" : "#9B2226";
+          return (
+            <div key={a.id} className="card" style={{ padding: 12, display: "flex", justifyContent: "space-between" }}>
+              <span>{a.worker_name}</span>
+              <span style={{ color, fontWeight: 600, fontSize: 13 }}>{a.status}</span>
+            </div>
+          );
+        })
+      )}
+
+      {/* SITE UPDATES */}
+      <h2>Daily site update</h2>
+      <div className="card">
+        <form onSubmit={handleAddSiteUpdate}>
+          <label>What happened on site today?</label>
+          <textarea
+            value={updateNote}
+            onChange={(e) => setUpdateNote(e.target.value)}
+            rows={4}
+            placeholder="e.g. Foundation pour completed on block A, delayed 2 hours due to rain."
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              fontSize: 15,
+              fontFamily: "inherit",
+              resize: "vertical",
+            }}
+          />
+
+          {updateError && <p className="error">{updateError}</p>}
+
+          <button type="submit" disabled={savingUpdate}>
+            {savingUpdate ? "Posting..." : "Post update"}
+          </button>
+        </form>
+      </div>
+
+      {siteUpdates.length > 0 && (
+        <>
+          <h2>Recent updates</h2>
+          {siteUpdates.map((u) => (
+            <div key={u.id} className="card">
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{u.update_date}</div>
+              <p style={{ margin: 0, fontSize: 14 }}>{u.note}</p>
+            </div>
+          ))}
+        </>
+      )}
+
       <div className="card" style={{ background: "#F0F0EC", borderStyle: "dashed", marginTop: 20 }}>
-        <strong>Coming next (Week 3 build)</strong>
+        <strong>Coming next</strong>
         <p style={{ marginTop: 4, color: "#666", fontSize: 14 }}>
-          Daily attendance and site updates will plug in below this section —
-          the <code>attendance</code> and <code>site_updates</code> tables
-          already exist in your database.
+          Photo attachments on site updates and receipts, plus an email
+          alert when a budget category crosses 80%, round out the MVP wedge.
         </p>
       </div>
     </div>
