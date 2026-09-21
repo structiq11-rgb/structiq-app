@@ -47,6 +47,8 @@ type SiteUpdate = {
 const CATEGORIES = ["Labour", "Materials", "Equipment", "Other"];
 const ATTENDANCE_STATUSES = ["Present", "Absent", "Late"];
 const PHOTO_BUCKET = "site-photos";
+const TABS = ["Overview", "Budget", "Attendance", "Site Updates"] as const;
+type Tab = typeof TABS[number];
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -57,11 +59,12 @@ export default function ProjectDetail() {
   const router = useRouter();
   const id = params.id as string;
 
+  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // budget state
   const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -70,7 +73,6 @@ export default function ProjectDetail() {
   const [savingLine, setSavingLine] = useState(false);
   const [lineError, setLineError] = useState("");
 
-  // editing a budget line
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -83,20 +85,17 @@ export default function ProjectDetail() {
   const [savingExpense, setSavingExpense] = useState(false);
   const [expenseError, setExpenseError] = useState("");
 
-  // editing an expense
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseAmount, setEditExpenseAmount] = useState("");
   const [editExpenseNote, setEditExpenseNote] = useState("");
   const [editExpenseError, setEditExpenseError] = useState("");
 
-  // attendance state
   const [attendanceToday, setAttendanceToday] = useState<AttendanceRow[]>([]);
   const [workerName, setWorkerName] = useState("");
   const [workerStatus, setWorkerStatus] = useState(ATTENDANCE_STATUSES[0]);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [attendanceError, setAttendanceError] = useState("");
 
-  // site update state
   const [siteUpdates, setSiteUpdates] = useState<SiteUpdate[]>([]);
   const [updateNote, setUpdateNote] = useState("");
   const [updatePhoto, setUpdatePhoto] = useState<File | null>(null);
@@ -189,18 +188,14 @@ export default function ProjectDetail() {
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }
 
-  // ---------- BUDGET LINES ----------
-
   async function handleAddBudgetLine(e: React.FormEvent) {
     e.preventDefault();
     setLineError("");
-
     const amount = Number(budgetedAmount);
     if (!amount || amount <= 0) {
       setLineError("Enter a budget amount greater than 0.");
       return;
     }
-
     setSavingLine(true);
     const { error } = await supabase.from("budget_lines").insert({
       project_id: id,
@@ -209,12 +204,10 @@ export default function ProjectDetail() {
       budgeted_amount: amount,
     });
     setSavingLine(false);
-
     if (error) {
       setLineError(error.message);
       return;
     }
-
     setDescription("");
     setBudgetedAmount("");
     await loadBudget();
@@ -240,43 +233,29 @@ export default function ProjectDetail() {
       setEditLineError("Enter a budget amount greater than 0.");
       return;
     }
-
     const { error } = await supabase
       .from("budget_lines")
-      .update({
-        category: editCategory,
-        description: editDescription || null,
-        budgeted_amount: amount,
-      })
+      .update({ category: editCategory, description: editDescription || null, budgeted_amount: amount })
       .eq("id", lineId);
-
     if (error) {
       setEditLineError(error.message);
       return;
     }
-
     setEditingLineId(null);
     await loadBudget();
   }
 
   async function deleteLine(lineId: string) {
-    const confirmed = window.confirm(
-      "Delete this budget line? Any expenses logged under it will be deleted too."
-    );
+    const confirmed = window.confirm("Delete this budget line? Any expenses logged under it will be deleted too.");
     if (!confirmed) return;
-
-    // expenses reference budget_line_id, so clear those first
     await supabase.from("expenses").delete().eq("budget_line_id", lineId);
     await supabase.from("budget_lines").delete().eq("id", lineId);
     await loadBudget();
   }
 
-  // ---------- EXPENSES ----------
-
   async function handleAddExpense(e: React.FormEvent) {
     e.preventDefault();
     setExpenseError("");
-
     if (!expenseLineId) {
       setExpenseError("Add a budget line first, then you can log expenses against it.");
       return;
@@ -286,7 +265,6 @@ export default function ProjectDetail() {
       setExpenseError("Enter an expense amount greater than 0.");
       return;
     }
-
     setSavingExpense(true);
     const { error } = await supabase.from("expenses").insert({
       budget_line_id: expenseLineId,
@@ -294,12 +272,10 @@ export default function ProjectDetail() {
       note: expenseNote || null,
     });
     setSavingExpense(false);
-
     if (error) {
       setExpenseError(error.message);
       return;
     }
-
     setExpenseAmount("");
     setExpenseNote("");
     await loadBudget();
@@ -324,17 +300,14 @@ export default function ProjectDetail() {
       setEditExpenseError("Enter an amount greater than 0.");
       return;
     }
-
     const { error } = await supabase
       .from("expenses")
       .update({ amount, note: editExpenseNote || null })
       .eq("id", expenseId);
-
     if (error) {
       setEditExpenseError(error.message);
       return;
     }
-
     setEditingExpenseId(null);
     await loadBudget();
   }
@@ -346,17 +319,13 @@ export default function ProjectDetail() {
     await loadBudget();
   }
 
-  // ---------- ATTENDANCE ----------
-
   async function handleAddAttendance(e: React.FormEvent) {
     e.preventDefault();
     setAttendanceError("");
-
     if (!workerName.trim()) {
       setAttendanceError("Enter a worker name.");
       return;
     }
-
     setSavingAttendance(true);
     const { error } = await supabase.from("attendance").insert({
       project_id: id,
@@ -365,12 +334,10 @@ export default function ProjectDetail() {
       attendance_date: todayStr(),
     });
     setSavingAttendance(false);
-
     if (error) {
       setAttendanceError(error.message);
       return;
     }
-
     setWorkerName("");
     setWorkerStatus(ATTENDANCE_STATUSES[0]);
     await loadAttendance();
@@ -388,43 +355,29 @@ export default function ProjectDetail() {
     await loadAttendance();
   }
 
-  // ---------- SITE UPDATES ----------
-
   async function handleAddSiteUpdate(e: React.FormEvent) {
     e.preventDefault();
     setUpdateError("");
-
     if (!updateNote.trim()) {
       setUpdateError("Write a short update before posting.");
       return;
     }
-
     setSavingUpdate(true);
-
     let photoUrl: string | null = null;
-
     if (updatePhoto) {
       const fileExt = updatePhoto.name.split(".").pop();
       const filePath = `${id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .upload(filePath, updatePhoto);
-
+      const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(filePath, updatePhoto);
       if (uploadError) {
         setSavingUpdate(false);
         setUpdateError(
-          "Photo upload failed: " +
-            uploadError.message +
-            ". Make sure the 'site-photos' storage bucket exists and is set to Public in Supabase."
+          "Photo upload failed: " + uploadError.message + ". Make sure the 'site-photos' bucket exists and is Public."
         );
         return;
       }
-
       const { data: urlData } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(filePath);
       photoUrl = urlData.publicUrl;
     }
-
     const { error } = await supabase.from("site_updates").insert({
       project_id: id,
       note: updateNote.trim(),
@@ -432,12 +385,10 @@ export default function ProjectDetail() {
       photo_url: photoUrl,
     });
     setSavingUpdate(false);
-
     if (error) {
       setUpdateError(error.message);
       return;
     }
-
     setUpdateNote("");
     setUpdatePhoto(null);
     await loadSiteUpdates();
@@ -469,10 +420,10 @@ export default function ProjectDetail() {
 
   const totalBudgeted = budgetLines.reduce((s, l) => s + Number(l.budgeted_amount), 0);
   const totalSpent = budgetLines.reduce((s, l) => s + spentFor(l.id), 0);
-
   const presentCount = attendanceToday.filter((a) => a.status === "Present").length;
   const absentCount = attendanceToday.filter((a) => a.status === "Absent").length;
   const lateCount = attendanceToday.filter((a) => a.status === "Late").length;
+  const anyOverBudget = budgetLines.some((l) => l.budgeted_amount > 0 && spentFor(l.id) / l.budgeted_amount >= 0.8);
 
   return (
     <div className="wide-container">
@@ -487,392 +438,291 @@ export default function ProjectDetail() {
         <a href="/dashboard"><button className="secondary">Back</button></a>
       </div>
 
-      <div className="card">
-        <strong>Site address</strong>
-        <p style={{ marginTop: 4, color: "#444" }}>{project.site_address || "Not set"}</p>
-        <strong>Timeline</strong>
-        <p style={{ marginTop: 4, color: "#444" }}>
-          {project.start_date || "?"} — {project.end_date || "?"}
-        </p>
+      <div className="section-tabs">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            className={`section-tab ${activeTab === tab ? "active" : ""}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+            {tab === "Budget" && anyOverBudget && <span className="badge">!</span>}
+          </button>
+        ))}
       </div>
 
-      <h2>Today at a glance</h2>
-      <div className="card" style={{ display: "flex", justifyContent: "space-between" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#1A7A4A" }}>{presentCount}</div>
-          <div style={{ fontSize: 12, color: "#666" }}>Present</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#9B2226" }}>{absentCount}</div>
-          <div style={{ fontSize: 12, color: "#666" }}>Absent</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#E87722" }}>{lateCount}</div>
-          <div style={{ fontSize: 12, color: "#666" }}>Late</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#0D1F3C" }}>
-            KES {totalSpent.toLocaleString()}
+      {/* OVERVIEW TAB */}
+      {activeTab === "Overview" && (
+        <>
+          <div className="card">
+            <strong>Site address</strong>
+            <p style={{ marginTop: 4, color: "#444" }}>{project.site_address || "Not set"}</p>
+            <strong>Timeline</strong>
+            <p style={{ marginTop: 4, color: "#444" }}>
+              {project.start_date || "?"} — {project.end_date || "?"}
+            </p>
           </div>
-          <div style={{ fontSize: 12, color: "#666" }}>Spent so far</div>
-        </div>
-      </div>
 
-      <h2>Budget overview</h2>
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-          <span>Total budgeted</span>
-          <strong>KES {totalBudgeted.toLocaleString()}</strong>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginTop: 4 }}>
-          <span>Total spent</span>
-          <strong>KES {totalSpent.toLocaleString()}</strong>
-        </div>
-      </div>
+          <h2>Today at a glance</h2>
+          <div className="card" style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#1A7A4A" }}>{presentCount}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>Present</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#9B2226" }}>{absentCount}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>Absent</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#E87722" }}>{lateCount}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>Late</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#0D1F3C" }}>
+                KES {totalSpent.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 12, color: "#666" }}>Spent so far</div>
+            </div>
+          </div>
 
-      {budgetLines.length === 0 && (
-        <p className="sub">No budget lines yet — add your first one below.</p>
+          {siteUpdates.length > 0 && (
+            <>
+              <h2>Latest site update</h2>
+              <div className="card">
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{siteUpdates[0].update_date}</div>
+                <p style={{ margin: 0, fontSize: 14 }}>{siteUpdates[0].note}</p>
+                {siteUpdates[0].photo_url && (
+                  <img
+                    src={siteUpdates[0].photo_url}
+                    alt="Site photo"
+                    style={{ width: "100%", borderRadius: 8, marginTop: 8, display: "block" }}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </>
       )}
 
-      {budgetLines.map((line) => {
-        const spent = spentFor(line.id);
-        const pct = line.budgeted_amount > 0 ? (spent / line.budgeted_amount) * 100 : 0;
-        const color = pct >= 100 ? "#9B2226" : pct >= 80 ? "#E87722" : "#1A7A4A";
-        const isEditing = editingLineId === line.id;
-
-        if (isEditing) {
-          return (
-            <div key={line.id} className="card">
-              <label>Category</label>
-              <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <label>Description</label>
-              <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-              <label>Budgeted amount (KES)</label>
-              <input
-                type="number"
-                value={editBudgetedAmount}
-                onChange={(e) => setEditBudgetedAmount(e.target.value)}
-              />
-              {editLineError && <p className="error">{editLineError}</p>}
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <button style={{ marginTop: 0 }} onClick={() => saveEditLine(line.id)}>
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  style={{ marginTop: 0 }}
-                  onClick={cancelEditLine}
-                >
-                  Cancel
-                </button>
-              </div>
+      {/* BUDGET TAB */}
+      {activeTab === "Budget" && (
+        <>
+          <h2>Budget overview</h2>
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+              <span>Total budgeted</span>
+              <strong>KES {totalBudgeted.toLocaleString()}</strong>
             </div>
-          );
-        }
-
-        return (
-          <div key={line.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <strong>{line.category}</strong>
-              <span style={{ fontSize: 13, color: "#666" }}>
-                {pct >= 80 && pct < 100 && "⚠ Near limit"}
-                {pct >= 100 && "⚠ Over budget"}
-              </span>
-            </div>
-            {line.description && (
-              <p style={{ fontSize: 13, color: "#666", margin: "2px 0 8px" }}>{line.description}</p>
-            )}
-            <div style={{ fontSize: 13, color: "#444", marginBottom: 4 }}>
-              KES {spent.toLocaleString()} spent of {line.budgeted_amount.toLocaleString()} budgeted
-              {" · "}
-              {pct.toFixed(0)}%
-            </div>
-            <div style={{ background: "#eee", borderRadius: 6, height: 8, overflow: "hidden" }}>
-              <div
-                style={{
-                  width: `${Math.min(pct, 100)}%`,
-                  background: color,
-                  height: "100%",
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginTop: 0, fontSize: 12, padding: "6px 10px" }}
-                onClick={() => startEditLine(line)}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginTop: 0, fontSize: 12, padding: "6px 10px", color: "#9B2226", borderColor: "#9B2226" }}
-                onClick={() => deleteLine(line.id)}
-              >
-                Delete
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginTop: 4 }}>
+              <span>Total spent</span>
+              <strong>KES {totalSpent.toLocaleString()}</strong>
             </div>
           </div>
-        );
-      })}
 
-      <h2>Add a budget line</h2>
-      <div className="card">
-        <form onSubmit={handleAddBudgetLine}>
-          <label>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+          {budgetLines.length === 0 && <p className="sub">No budget lines yet — add your first one below.</p>}
 
-          <label>Description (optional)</label>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Cement and blocks" />
-
-          <label>Budgeted amount (KES)</label>
-          <input
-            type="number"
-            value={budgetedAmount}
-            onChange={(e) => setBudgetedAmount(e.target.value)}
-            placeholder="e.g. 250000"
-          />
-
-          {lineError && <p className="error">{lineError}</p>}
-
-          <button type="submit" disabled={savingLine}>
-            {savingLine ? "Saving..." : "Add budget line"}
-          </button>
-        </form>
-      </div>
-
-      <h2>Log an expense</h2>
-      <div className="card">
-        {budgetLines.length === 0 ? (
-          <p className="sub" style={{ marginBottom: 0 }}>
-            Add a budget line above first — expenses log against a specific category.
-          </p>
-        ) : (
-          <form onSubmit={handleAddExpense}>
-            <label>Budget line</label>
-            <select value={expenseLineId} onChange={(e) => setExpenseLineId(e.target.value)}>
-              {budgetLines.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.category}{l.description ? ` — ${l.description}` : ""}
-                </option>
-              ))}
-            </select>
-
-            <label>Amount (KES)</label>
-            <input
-              type="number"
-              value={expenseAmount}
-              onChange={(e) => setExpenseAmount(e.target.value)}
-              placeholder="e.g. 15000"
-            />
-
-            <label>Note (optional)</label>
-            <input value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} placeholder="e.g. Delivery receipt #4521" />
-
-            {expenseError && <p className="error">{expenseError}</p>}
-
-            <button type="submit" disabled={savingExpense}>
-              {savingExpense ? "Saving..." : "Log expense"}
-            </button>
-          </form>
-        )}
-      </div>
-
-      {expenses.length > 0 && (
-        <>
-          <h2>Recent expenses</h2>
-          {expenses.slice(0, 10).map((exp) => {
-            const line = budgetLines.find((l) => l.id === exp.budget_line_id);
-            const isEditing = editingExpenseId === exp.id;
+          {budgetLines.map((line) => {
+            const spent = spentFor(line.id);
+            const pct = line.budgeted_amount > 0 ? (spent / line.budgeted_amount) * 100 : 0;
+            const color = pct >= 100 ? "#9B2226" : pct >= 80 ? "#E87722" : "#1A7A4A";
+            const isEditing = editingLineId === line.id;
 
             if (isEditing) {
               return (
-                <div key={exp.id} className="card" style={{ padding: 12 }}>
-                  <label>Amount (KES)</label>
-                  <input
-                    type="number"
-                    value={editExpenseAmount}
-                    onChange={(e) => setEditExpenseAmount(e.target.value)}
-                  />
-                  <label>Note</label>
-                  <input value={editExpenseNote} onChange={(e) => setEditExpenseNote(e.target.value)} />
-                  {editExpenseError && <p className="error">{editExpenseError}</p>}
+                <div key={line.id} className="card">
+                  <label>Category</label>
+                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <label>Description</label>
+                  <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                  <label>Budgeted amount (KES)</label>
+                  <input type="number" value={editBudgetedAmount} onChange={(e) => setEditBudgetedAmount(e.target.value)} />
+                  {editLineError && <p className="error">{editLineError}</p>}
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button style={{ marginTop: 0 }} onClick={() => saveEditExpense(exp.id)}>
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      style={{ marginTop: 0 }}
-                      onClick={cancelEditExpense}
-                    >
-                      Cancel
-                    </button>
+                    <button style={{ marginTop: 0 }} onClick={() => saveEditLine(line.id)}>Save</button>
+                    <button type="button" className="secondary" style={{ marginTop: 0 }} onClick={cancelEditLine}>Cancel</button>
                   </div>
                 </div>
               );
             }
 
             return (
-              <div key={exp.id} className="card" style={{ padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                  <span>{line?.category || "Unknown category"}</span>
-                  <strong>KES {Number(exp.amount).toLocaleString()}</strong>
+              <div key={line.id} className="card">
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <strong>{line.category}</strong>
+                  <span style={{ fontSize: 13, color: "#666" }}>
+                    {pct >= 80 && pct < 100 && "⚠ Near limit"}
+                    {pct >= 100 && "⚠ Over budget"}
+                  </span>
                 </div>
-                <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
-                  {exp.expense_date}
-                  {exp.note && ` · ${exp.note}`}
+                {line.description && <p style={{ fontSize: 13, color: "#666", margin: "2px 0 8px" }}>{line.description}</p>}
+                <div style={{ fontSize: 13, color: "#444", marginBottom: 4 }}>
+                  KES {spent.toLocaleString()} spent of {line.budgeted_amount.toLocaleString()} budgeted · {pct.toFixed(0)}%
                 </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button
-                    type="button"
-                    className="secondary"
-                    style={{ marginTop: 0, fontSize: 12, padding: "5px 9px" }}
-                    onClick={() => startEditExpense(exp)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    style={{ marginTop: 0, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226" }}
-                    onClick={() => deleteExpense(exp.id)}
-                  >
-                    Delete
-                  </button>
+                <div style={{ background: "#eee", borderRadius: 6, height: 8, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(pct, 100)}%`, background: color, height: "100%" }} />
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button type="button" className="secondary" style={{ marginTop: 0, fontSize: 12, padding: "6px 10px" }} onClick={() => startEditLine(line)}>Edit</button>
+                  <button type="button" className="secondary" style={{ marginTop: 0, fontSize: 12, padding: "6px 10px", color: "#9B2226", borderColor: "#9B2226" }} onClick={() => deleteLine(line.id)}>Delete</button>
                 </div>
               </div>
             );
           })}
+
+          <h2>Add a budget line</h2>
+          <div className="card">
+            <form onSubmit={handleAddBudgetLine}>
+              <label>Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <label>Description (optional)</label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Cement and blocks" />
+              <label>Budgeted amount (KES)</label>
+              <input type="number" value={budgetedAmount} onChange={(e) => setBudgetedAmount(e.target.value)} placeholder="e.g. 250000" />
+              {lineError && <p className="error">{lineError}</p>}
+              <button type="submit" disabled={savingLine}>{savingLine ? "Saving..." : "Add budget line"}</button>
+            </form>
+          </div>
+
+          <h2>Log an expense</h2>
+          <div className="card">
+            {budgetLines.length === 0 ? (
+              <p className="sub" style={{ marginBottom: 0 }}>Add a budget line above first — expenses log against a specific category.</p>
+            ) : (
+              <form onSubmit={handleAddExpense}>
+                <label>Budget line</label>
+                <select value={expenseLineId} onChange={(e) => setExpenseLineId(e.target.value)}>
+                  {budgetLines.map((l) => <option key={l.id} value={l.id}>{l.category}{l.description ? ` — ${l.description}` : ""}</option>)}
+                </select>
+                <label>Amount (KES)</label>
+                <input type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} placeholder="e.g. 15000" />
+                <label>Note (optional)</label>
+                <input value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} placeholder="e.g. Delivery receipt #4521" />
+                {expenseError && <p className="error">{expenseError}</p>}
+                <button type="submit" disabled={savingExpense}>{savingExpense ? "Saving..." : "Log expense"}</button>
+              </form>
+            )}
+          </div>
+
+          {expenses.length > 0 && (
+            <>
+              <h2>Recent expenses</h2>
+              {expenses.slice(0, 10).map((exp) => {
+                const line = budgetLines.find((l) => l.id === exp.budget_line_id);
+                const isEditing = editingExpenseId === exp.id;
+                if (isEditing) {
+                  return (
+                    <div key={exp.id} className="card" style={{ padding: 12 }}>
+                      <label>Amount (KES)</label>
+                      <input type="number" value={editExpenseAmount} onChange={(e) => setEditExpenseAmount(e.target.value)} />
+                      <label>Note</label>
+                      <input value={editExpenseNote} onChange={(e) => setEditExpenseNote(e.target.value)} />
+                      {editExpenseError && <p className="error">{editExpenseError}</p>}
+                      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                        <button style={{ marginTop: 0 }} onClick={() => saveEditExpense(exp.id)}>Save</button>
+                        <button type="button" className="secondary" style={{ marginTop: 0 }} onClick={cancelEditExpense}>Cancel</button>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={exp.id} className="card" style={{ padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                      <span>{line?.category || "Unknown category"}</span>
+                      <strong>KES {Number(exp.amount).toLocaleString()}</strong>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                      {exp.expense_date}{exp.note && ` · ${exp.note}`}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" className="secondary" style={{ marginTop: 0, fontSize: 12, padding: "5px 9px" }} onClick={() => startEditExpense(exp)}>Edit</button>
+                      <button type="button" className="secondary" style={{ marginTop: 0, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226" }} onClick={() => deleteExpense(exp.id)}>Delete</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </>
       )}
 
-      <h2>Today's attendance — {todayStr()}</h2>
-      <div className="card">
-        <form onSubmit={handleAddAttendance}>
-          <label>Worker name</label>
-          <input value={workerName} onChange={(e) => setWorkerName(e.target.value)} placeholder="e.g. John Mwangi" />
+      {/* ATTENDANCE TAB */}
+      {activeTab === "Attendance" && (
+        <>
+          <h2>Today's attendance — {todayStr()}</h2>
+          <div className="card">
+            <form onSubmit={handleAddAttendance}>
+              <label>Worker name</label>
+              <input value={workerName} onChange={(e) => setWorkerName(e.target.value)} placeholder="e.g. John Mwangi" />
+              <label>Status</label>
+              <select value={workerStatus} onChange={(e) => setWorkerStatus(e.target.value)}>
+                {ATTENDANCE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {attendanceError && <p className="error">{attendanceError}</p>}
+              <button type="submit" disabled={savingAttendance}>{savingAttendance ? "Saving..." : "Add worker"}</button>
+            </form>
+          </div>
 
-          <label>Status</label>
-          <select value={workerStatus} onChange={(e) => setWorkerStatus(e.target.value)}>
-            {ATTENDANCE_STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-
-          {attendanceError && <p className="error">{attendanceError}</p>}
-
-          <button type="submit" disabled={savingAttendance}>
-            {savingAttendance ? "Saving..." : "Add worker"}
-          </button>
-        </form>
-      </div>
-
-      {attendanceToday.length === 0 ? (
-        <p className="sub">No one marked yet today.</p>
-      ) : (
-        attendanceToday.map((a) => {
-          const color =
-            a.status === "Present" ? "#1A7A4A" : a.status === "Late" ? "#E87722" : "#9B2226";
-          return (
-            <div key={a.id} className="card" style={{ padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>{a.worker_name}</span>
-                <select
-                  value={a.status}
-                  onChange={(e) => changeAttendanceStatus(a.id, e.target.value)}
-                  style={{ width: "auto", padding: "4px 8px", fontSize: 13, color, fontWeight: 600 }}
-                >
-                  {ATTENDANCE_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginTop: 8, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226", width: "auto" }}
-                onClick={() => deleteAttendance(a.id)}
-              >
-                Remove
-              </button>
-            </div>
-          );
-        })
+          {attendanceToday.length === 0 ? (
+            <p className="sub">No one marked yet today.</p>
+          ) : (
+            attendanceToday.map((a) => {
+              const color = a.status === "Present" ? "#1A7A4A" : a.status === "Late" ? "#E87722" : "#9B2226";
+              return (
+                <div key={a.id} className="card" style={{ padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>{a.worker_name}</span>
+                    <select value={a.status} onChange={(e) => changeAttendanceStatus(a.id, e.target.value)} style={{ width: "auto", padding: "4px 8px", fontSize: 13, color, fontWeight: 600 }}>
+                      {ATTENDANCE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <button type="button" className="secondary" style={{ marginTop: 8, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226", width: "auto" }} onClick={() => deleteAttendance(a.id)}>Remove</button>
+                </div>
+              );
+            })
+          )}
+        </>
       )}
 
-      <h2>Daily site update</h2>
-      <div className="card">
-        <form onSubmit={handleAddSiteUpdate}>
-          <label>What happened on site today?</label>
-          <textarea
-            value={updateNote}
-            onChange={(e) => setUpdateNote(e.target.value)}
-            rows={4}
-            placeholder="e.g. Foundation pour completed on block A, delayed 2 hours due to rain."
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              fontSize: 15,
-              fontFamily: "inherit",
-              resize: "vertical",
-            }}
-          />
-
-          <label>Photo (optional)</label>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => setUpdatePhoto(e.target.files?.[0] || null)}
-          />
-
-          {updateError && <p className="error">{updateError}</p>}
-
-          <button type="submit" disabled={savingUpdate}>
-            {savingUpdate ? "Posting..." : "Post update"}
-          </button>
-        </form>
-      </div>
-
-      {siteUpdates.length > 0 && (
+      {/* SITE UPDATES TAB */}
+      {activeTab === "Site Updates" && (
         <>
-          <h2>Recent updates</h2>
-          {siteUpdates.map((u) => (
-            <div key={u.id} className="card">
-              <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{u.update_date}</div>
-              <p style={{ margin: 0, fontSize: 14 }}>{u.note}</p>
-              {u.photo_url && (
-                <img
-                  src={u.photo_url}
-                  alt="Site photo"
-                  style={{ width: "100%", borderRadius: 8, marginTop: 8, display: "block" }}
-                />
-              )}
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginTop: 8, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226", width: "auto" }}
-                onClick={() => deleteSiteUpdate(u.id)}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+          <h2>Daily site update</h2>
+          <div className="card">
+            <form onSubmit={handleAddSiteUpdate}>
+              <label>What happened on site today?</label>
+              <textarea
+                value={updateNote}
+                onChange={(e) => setUpdateNote(e.target.value)}
+                rows={4}
+                placeholder="e.g. Foundation pour completed on block A, delayed 2 hours due to rain."
+                style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 15, fontFamily: "inherit", resize: "vertical" }}
+              />
+              <label>Photo (optional)</label>
+              <input type="file" accept="image/*" capture="environment" onChange={(e) => setUpdatePhoto(e.target.files?.[0] || null)} />
+              {updateError && <p className="error">{updateError}</p>}
+              <button type="submit" disabled={savingUpdate}>{savingUpdate ? "Posting..." : "Post update"}</button>
+            </form>
+          </div>
+
+          {siteUpdates.length > 0 && (
+            <>
+              <h2>Recent updates</h2>
+              {siteUpdates.map((u) => (
+                <div key={u.id} className="card">
+                  <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{u.update_date}</div>
+                  <p style={{ margin: 0, fontSize: 14 }}>{u.note}</p>
+                  {u.photo_url && (
+                    <img src={u.photo_url} alt="Site photo" style={{ width: "100%", borderRadius: 8, marginTop: 8, display: "block" }} />
+                  )}
+                  <button type="button" className="secondary" style={{ marginTop: 8, fontSize: 12, padding: "5px 9px", color: "#9B2226", borderColor: "#9B2226", width: "auto" }} onClick={() => deleteSiteUpdate(u.id)}>Delete</button>
+                </div>
+              ))}
+            </>
+          )}
         </>
       )}
     </div>
