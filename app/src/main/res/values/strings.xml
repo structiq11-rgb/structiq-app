@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Struct-IQ</string>
+    <string name="app_tagline">Civil Engineering &amp; Construction Tender Workspace</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="nav_home">Home</string>
+    <string name="nav_tenders">Tenders</string>
+    <string name="nav_projects">Projects</string>
+    <string name="nav_documents">Documents</string>
+    <string name="nav_tools">Tools</string>
+    
+    <!-- General -->
+    <string name="ai_assistant">AI Assistant</string>
+    <string name="templates">Templates</string>
+</resources>
