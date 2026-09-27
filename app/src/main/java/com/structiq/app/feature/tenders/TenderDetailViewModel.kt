@@ -1,98 +1,189 @@
 package com.structiq.app.feature.tenders
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.structiq.app.core.database.DocumentEntity
+import com.structiq.app.core.database.TenderChecklistItemEntity
 import com.structiq.app.core.database.TenderEntity
+import com.structiq.app.core.database.TenderNoteEntity
+import com.structiq.app.core.model.DocumentCategory
 import com.structiq.app.core.model.TenderStatus
+import com.structiq.app.data.repository.DocumentRepository
 import com.structiq.app.data.repository.TenderRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 
-data class TenderRequirementItem(
-    val id: String,
-    val category: String, // Administrative, Technical, Financial, Submission
-    val title: String,
-    val description: String,
-    val isCompleted: Boolean = false,
-    val attachedDocName: String? = null
+enum class DeadlineStatus {
+    GREEN,   // > 7 days remaining
+    AMBER,   // 1 to 7 days remaining
+    RED,     // < 24 hours remaining
+    EXPIRED  // Passed
+}
+
+data class BidReadinessSummary(
+    val totalCount: Int = 0,
+    val completedCount: Int = 0,
+    val outstandingCount: Int = 0,
+    val criticalOutstandingCount: Int = 0,
+    val countWithDocs: Int = 0,
+    val countWithoutDocs: Int = 0,
+    val readinessPercentage: Int = 0
 )
 
 class TenderDetailViewModel(
     private val tenderId: String,
-    private val tenderRepository: TenderRepository
+    private val tenderRepository: TenderRepository,
+    private val documentRepository: DocumentRepository
 ) : ViewModel() {
 
-    private val _tender = MutableStateFlow<TenderEntity?>(null)
-    val tender: StateFlow<TenderEntity?> = _tender.asStateFlow()
+    val tender: StateFlow<TenderEntity?> = tenderRepository.getAllTenders()
+        .map { list -> list.find { it.id == tenderId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _requirements = MutableStateFlow<List<TenderRequirementItem>>(emptyList())
-    val requirements: StateFlow<List<TenderRequirementItem>> = _requirements.asStateFlow()
+    val checklistItems: StateFlow<List<TenderChecklistItemEntity>> =
+        tenderRepository.getChecklistForTender(tenderId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init {
-        loadTenderDetails()
-        loadDefaultChecklist()
-    }
+    val tenderNotes: StateFlow<List<TenderNoteEntity>> =
+        tenderRepository.getNotesForTender(tenderId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private fun loadTenderDetails() {
-        viewModelScope.launch {
-            _tender.value = tenderRepository.getTender(tenderId)
-        }
-    }
+    val tenderDocuments: StateFlow<List<DocumentEntity>> =
+        documentRepository.getDocumentsForTender(tenderId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private fun loadDefaultChecklist() {
-        _requirements.value = listOf(
-            // Administrative
-            TenderRequirementItem("req_1", "Administrative", "Certificate of Incorporation / Registration", "Certified copy of company registration certificate", true, "Apex_Registration_2026.pdf"),
-            TenderRequirementItem("req_2", "Administrative", "Valid Tax Compliance Certificate", "KRA / Tax Authority valid clearance certificate", true, "Tax_Compliance_2026.pdf"),
-            TenderRequirementItem("req_3", "Administrative", "CR12 / Official Directors List", "Search list of directors issued within last 6 months", true, "CR12_Directors.pdf"),
-            TenderRequirementItem("req_4", "Administrative", "Single Business Permit", "Valid county / municipal business operation license", false),
+    val readinessSummary: StateFlow<BidReadinessSummary> = checklistItems.map { items ->
+        val total = items.size
+        val completed = items.count { it.isCompleted }
+        val outstanding = total - completed
+        val criticalOutstanding = items.count { !it.isCompleted && it.isCritical }
+        val withDocs = items.count { !it.supportingDocUri.isNullOrBlank() || !it.supportingDocName.isNullOrBlank() }
+        val withoutDocs = total - withDocs
+        val pct = if (total > 0) (completed.toFloat() / total.toFloat() * 100).toInt() else 0
 
-            // Technical
-            TenderRequirementItem("req_5", "Technical", "Company Technical Profile", "Detailed company profile outlining civil engineering experience", true, "Apex_Corporate_Profile_2026.pdf"),
-            TenderRequirementItem("req_6", "Technical", "Method Statement & Sequence", "Detailed methodology for pipe laying / structural works", true, "Method_Statement_Ductile_Iron.docx"),
-            TenderRequirementItem("req_7", "Technical", "Key Personnel CVs & Practicing Licenses", "Resident Engineer, Site Agent & Safety Officer CVs", false),
-            TenderRequirementItem("req_8", "Technical", "Equipment Ownership / Lease Agreements", "Excavators, batching plant, dump trucks logbooks", false),
-
-            // Financial
-            TenderRequirementItem("req_9", "Financial", "Audited Financial Statements (Last 3 Years)", "Signed balance sheets & profit/loss statements", true, "Audited_Accounts_2023_2025.pdf"),
-            TenderRequirementItem("req_10", "Financial", "Bid Bond / Tender Security Guarantee", "Original bank guarantee from reputable commercial bank", false),
-            TenderRequirementItem("req_11", "Financial", "Priced Bill of Quantities (BOQ)", "Duly filled, stamped & signed pricing schedule", true, "BOQ_Water_Supply_Works.xlsx"),
-
-            // Submission
-            TenderRequirementItem("req_12", "Submission", "Form of Tender Signed & Stamped", "Official tender form with total contract bid amount", false)
+        BidReadinessSummary(
+            totalCount = total,
+            completedCount = completed,
+            outstandingCount = outstanding,
+            criticalOutstandingCount = criticalOutstanding,
+            countWithDocs = withDocs,
+            countWithoutDocs = withoutDocs,
+            readinessPercentage = pct
         )
-        updateComplianceScore()
-    }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BidReadinessSummary())
 
-    fun toggleRequirement(id: String) {
-        _requirements.value = _requirements.value.map { item ->
-            if (item.id == id) item.copy(isCompleted = !item.isCompleted) else item
-        }
-        updateComplianceScore()
-    }
-
-    fun updateStatus(newStatus: TenderStatus) {
+    fun toggleChecklistItem(item: TenderChecklistItemEntity) {
         viewModelScope.launch {
-            _tender.value?.let { current ->
-                val updated = current.copy(status = newStatus)
-                tenderRepository.createOrUpdateTender(updated)
-                _tender.value = updated
+            val updated = item.copy(isCompleted = !item.isCompleted)
+            tenderRepository.updateChecklistItem(updated)
+            syncTenderProgress()
+        }
+    }
+
+    fun attachDocumentToRequirement(item: TenderChecklistItemEntity, uri: Uri, docName: String) {
+        viewModelScope.launch {
+            val updated = item.copy(
+                supportingDocUri = uri.toString(),
+                supportingDocName = docName
+            )
+            tenderRepository.updateChecklistItem(updated)
+
+            // Save document metadata in Room
+            val newDoc = DocumentEntity(
+                id = "doc_${UUID.randomUUID().toString().take(8)}",
+                title = docName,
+                category = DocumentCategory.TENDER_DOC,
+                fileType = docName.substringAfterLast('.', "PDF").uppercase(),
+                sizeBytes = 1500000L,
+                filePath = uri.toString(),
+                relatedTenderId = tenderId,
+                createdAtEpochMs = System.currentTimeMillis()
+            )
+            documentRepository.saveDocument(newDoc)
+        }
+    }
+
+    fun addCustomChecklistItem(
+        category: String,
+        title: String,
+        description: String,
+        isCritical: Boolean
+    ) {
+        viewModelScope.launch {
+            val newItem = TenderChecklistItemEntity(
+                id = "req_${UUID.randomUUID().toString().take(8)}",
+                tenderId = tenderId,
+                category = category,
+                title = title.ifBlank { "Tender Requirement" },
+                description = description,
+                isCompleted = false,
+                isRequired = true,
+                isCritical = isCritical
+            )
+            tenderRepository.saveChecklistItem(newItem)
+            syncTenderProgress()
+        }
+    }
+
+    fun addTenderNote(noteText: String, category: String) {
+        if (noteText.isBlank()) return
+        viewModelScope.launch {
+            val newNote = TenderNoteEntity(
+                id = "note_${UUID.randomUUID().toString().take(8)}",
+                tenderId = tenderId,
+                noteText = noteText,
+                category = category,
+                createdAtEpochMs = System.currentTimeMillis()
+            )
+            tenderRepository.saveTenderNote(newNote)
+        }
+    }
+
+    fun deleteTenderNote(note: TenderNoteEntity) {
+        viewModelScope.launch {
+            tenderRepository.deleteTenderNote(note)
+        }
+    }
+
+    fun updateTenderStatus(status: TenderStatus) {
+        viewModelScope.launch {
+            tender.value?.let { current ->
+                tenderRepository.createOrUpdateTender(current.copy(status = status))
             }
         }
     }
 
-    private fun updateComplianceScore() {
-        val completed = _requirements.value.count { it.isCompleted }
-        val total = _requirements.value.size
-        viewModelScope.launch {
-            _tender.value?.let { current ->
-                val updated = current.copy(
+    private suspend fun syncTenderProgress() {
+        tender.value?.let { current ->
+            val list = checklistItems.value
+            val total = list.size
+            val completed = list.count { it.isCompleted }
+            tenderRepository.createOrUpdateTender(
+                current.copy(
                     totalRequirementsCount = total,
                     completedRequirementsCount = completed
                 )
-                tenderRepository.createOrUpdateTender(updated)
-                _tender.value = updated
-            }
+            )
+        }
+    }
+
+    fun calculateDeadlineStatus(closingEpochMs: Long): Pair<DeadlineStatus, String> {
+        val now = System.currentTimeMillis()
+        val diffMs = closingEpochMs - now
+
+        if (diffMs <= 0) {
+            return Pair(DeadlineStatus.EXPIRED, "Expired / Passed")
+        }
+
+        val diffHours = diffMs / (1000 * 60 * 60)
+        val diffDays = diffHours / 24
+
+        return when {
+            diffHours < 24 -> Pair(DeadlineStatus.RED, "$diffHours hours remaining (URGENT)")
+            diffDays <= 7 -> Pair(DeadlineStatus.AMBER, "$diffDays days remaining (APPROACHING)")
+            else -> Pair(DeadlineStatus.GREEN, "$diffDays days remaining")
         }
     }
 }

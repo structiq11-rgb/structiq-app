@@ -182,7 +182,7 @@ fun StructIQNavHost(
 
         composable(Screen.TenderDetail.route) { backStackEntry ->
             val tenderId = backStackEntry.arguments?.getString("tenderId") ?: ""
-            val detailViewModel = remember(tenderId) { TenderDetailViewModel(tenderId, tenderRepository) }
+            val detailViewModel = remember(tenderId) { TenderDetailViewModel(tenderId, tenderRepository, documentRepository) }
             TenderDetailScreen(
                 viewModel = detailViewModel,
                 onBackClick = { navController.popBackStack() }

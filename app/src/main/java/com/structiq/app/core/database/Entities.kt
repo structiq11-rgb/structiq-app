@@ -31,6 +31,30 @@ data class TenderEntity(
     val completedRequirementsCount: Int = 0
 )
 
+@Entity(tableName = "tender_checklist_items")
+data class TenderChecklistItemEntity(
+    @PrimaryKey val id: String,
+    val tenderId: String,
+    val category: String, // Administrative, Technical, Financial, Submission
+    val title: String,
+    val description: String,
+    val isCompleted: Boolean = false,
+    val isRequired: Boolean = true,
+    val isCritical: Boolean = false,
+    val notes: String = "",
+    val supportingDocUri: String? = null,
+    val supportingDocName: String? = null
+)
+
+@Entity(tableName = "tender_notes")
+data class TenderNoteEntity(
+    @PrimaryKey val id: String,
+    val tenderId: String,
+    val noteText: String,
+    val category: String = "General Clarification", // Clarification, Internal Review, Question, Submission Instruction
+    val createdAtEpochMs: Long
+)
+
 @Entity(tableName = "projects")
 data class ProjectEntity(
     @PrimaryKey val id: String,
@@ -44,6 +68,58 @@ data class ProjectEntity(
     val progressPercent: Float = 0f,
     val totalTasksCount: Int = 0,
     val completedTasksCount: Int = 0
+)
+
+@Entity(tableName = "project_tasks")
+data class ProjectTaskEntity(
+    @PrimaryKey val id: String,
+    val projectId: String,
+    val taskName: String,
+    val description: String,
+    val assignedPerson: String,
+    val startDateEpochMs: Long,
+    val dueDateEpochMs: Long,
+    val status: String, // Not Started, In Progress, Completed, Delayed
+    val progressPercent: Float = 0f, // 0.0 to 1.0
+    val priority: String = "Medium", // High, Medium, Low
+    val notes: String = ""
+)
+
+@Entity(tableName = "site_diary_entries")
+data class SiteDiaryEntryEntity(
+    @PrimaryKey val id: String,
+    val projectId: String,
+    val entryDateEpochMs: Long,
+    val weather: String,
+    val sitePersonnelSummary: String,
+    val plantEquipmentSummary: String,
+    val materialsDelivered: String,
+    val workPerformed: String,
+    val quantitiesMeasured: String,
+    val visitors: String,
+    val instructionsReceived: String,
+    val delays: String,
+    val safetyObservations: String,
+    val qualityObservations: String,
+    val issues: String,
+    val generalNotes: String,
+    val photoUrisJson: String = "[]"
+)
+
+@Entity(tableName = "project_issues")
+data class ProjectIssueEntity(
+    @PrimaryKey val id: String,
+    val projectId: String,
+    val title: String,
+    val description: String,
+    val category: String, // Safety, Quality, Programme, Cost, Materials, Design, Client, Subcontractor, Weather, Other
+    val priority: String, // High, Medium, Low
+    val dateIdentifiedEpochMs: Long,
+    val assignedPerson: String,
+    val status: String, // Open, In Progress, Resolved, Closed
+    val dueDateEpochMs: Long,
+    val resolutionNotes: String = "",
+    val photoUrisJson: String = "[]"
 )
 
 @Entity(tableName = "documents")

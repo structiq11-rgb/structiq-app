@@ -5,22 +5,80 @@ import com.structiq.app.core.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
-class TenderRepository(private val tenderDao: TenderDao) {
+class TenderRepository(
+    private val tenderDao: TenderDao,
+    private val tenderChecklistDao: TenderChecklistDao,
+    private val tenderNoteDao: TenderNoteDao
+) {
     fun getAllTenders(): Flow<List<TenderEntity>> = tenderDao.getAllTendersFlow()
     suspend fun getTender(id: String): TenderEntity? = tenderDao.getTenderById(id)
     suspend fun createOrUpdateTender(tender: TenderEntity) = tenderDao.insertTender(tender)
     suspend fun deleteTender(tender: TenderEntity) = tenderDao.deleteTender(tender)
+
+    // Checklist Operations
+    fun getChecklistForTender(tenderId: String): Flow<List<TenderChecklistItemEntity>> =
+        tenderChecklistDao.getChecklistForTenderFlow(tenderId)
+
+    suspend fun saveChecklistItem(item: TenderChecklistItemEntity) =
+        tenderChecklistDao.insertChecklistItem(item)
+
+    suspend fun updateChecklistItem(item: TenderChecklistItemEntity) =
+        tenderChecklistDao.updateChecklistItem(item)
+
+    suspend fun deleteChecklistItem(item: TenderChecklistItemEntity) =
+        tenderChecklistDao.deleteChecklistItem(item)
+
+    // Tender Notes Operations
+    fun getNotesForTender(tenderId: String): Flow<List<TenderNoteEntity>> =
+        tenderNoteDao.getNotesForTenderFlow(tenderId)
+
+    suspend fun saveTenderNote(note: TenderNoteEntity) =
+        tenderNoteDao.insertNote(note)
+
+    suspend fun deleteTenderNote(note: TenderNoteEntity) =
+        tenderNoteDao.deleteNote(note)
 }
 
-class ProjectRepository(private val projectDao: ProjectDao) {
+class ProjectRepository(
+    private val projectDao: ProjectDao,
+    private val projectTaskDao: ProjectTaskDao,
+    private val siteDiaryEntryDao: SiteDiaryEntryDao,
+    private val projectIssueDao: ProjectIssueDao
+) {
     fun getAllProjects(): Flow<List<ProjectEntity>> = projectDao.getAllProjectsFlow()
     suspend fun getProject(id: String): ProjectEntity? = projectDao.getProjectById(id)
     suspend fun createOrUpdateProject(project: ProjectEntity) = projectDao.insertProject(project)
     suspend fun deleteProject(project: ProjectEntity) = projectDao.deleteProject(project)
+
+    // Tasks Operations
+    fun getTasksForProject(projectId: String): Flow<List<ProjectTaskEntity>> =
+        projectTaskDao.getTasksForProjectFlow(projectId)
+
+    suspend fun saveTask(task: ProjectTaskEntity) = projectTaskDao.insertTask(task)
+    suspend fun updateTask(task: ProjectTaskEntity) = projectTaskDao.updateTask(task)
+    suspend fun deleteTask(task: ProjectTaskEntity) = projectTaskDao.deleteTask(task)
+
+    // Site Diary Operations
+    fun getDiaryEntriesForProject(projectId: String): Flow<List<SiteDiaryEntryEntity>> =
+        siteDiaryEntryDao.getDiaryEntriesForProjectFlow(projectId)
+
+    suspend fun saveDiaryEntry(entry: SiteDiaryEntryEntity) = siteDiaryEntryDao.insertDiaryEntry(entry)
+    suspend fun updateDiaryEntry(entry: SiteDiaryEntryEntity) = siteDiaryEntryDao.updateDiaryEntry(entry)
+    suspend fun deleteDiaryEntry(entry: SiteDiaryEntryEntity) = siteDiaryEntryDao.deleteDiaryEntry(entry)
+
+    // Issues Operations
+    fun getIssuesForProject(projectId: String): Flow<List<ProjectIssueEntity>> =
+        projectIssueDao.getIssuesForProjectFlow(projectId)
+
+    suspend fun saveIssue(issue: ProjectIssueEntity) = projectIssueDao.insertIssue(issue)
+    suspend fun updateIssue(issue: ProjectIssueEntity) = projectIssueDao.updateIssue(issue)
+    suspend fun deleteIssue(issue: ProjectIssueEntity) = projectIssueDao.deleteIssue(issue)
 }
 
 class DocumentRepository(private val documentDao: DocumentDao) {
     fun getAllDocuments(): Flow<List<DocumentEntity>> = documentDao.getAllDocumentsFlow()
+    fun getDocumentsForTender(tenderId: String): Flow<List<DocumentEntity>> = documentDao.getDocumentsForTenderFlow(tenderId)
+    fun getDocumentsForProject(projectId: String): Flow<List<DocumentEntity>> = documentDao.getDocumentsForProjectFlow(projectId)
     suspend fun saveDocument(doc: DocumentEntity) = documentDao.insertDocument(doc)
     suspend fun deleteDocument(doc: DocumentEntity) = documentDao.deleteDocument(doc)
 }

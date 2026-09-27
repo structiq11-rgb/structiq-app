@@ -26,22 +26,22 @@ object SampleDataGenerator {
             estimatedValueUsd = 4500000.0,
             status = TenderStatus.PREPARING,
             notes = "Key requirements: 450mm Ductile Iron pipe laying, RC storage tank 2,000m³, chlorination plant. Tax compliance & Bid Security $90,000 required.",
-            totalRequirementsCount = 18,
-            completedRequirementsCount = 14
+            totalRequirementsCount = 12,
+            completedRequirementsCount = 7
         ),
         TenderEntity(
             id = "tender_102",
             title = "A104 Dual Carriageway Overpass Bridge Rehabilitation & Culverts",
             clientName = "National Highways Authority",
             tenderNumber = "NHA/HWY/2026/042",
-            closingDateEpochMs = System.currentTimeMillis() + (5 * 24 * 60 * 60 * 1000L), // 5 days left
+            closingDateEpochMs = System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000L), // 3 days left (AMBER)
             location = "Nakuru Corridor",
             contractType = ContractType.FIDIC_RED,
             estimatedValueUsd = 2800000.0,
             status = TenderStatus.REVIEWING,
             notes = "Requires structural concrete C35/45, post-tensioned girders, traffic diversion plan and EIA audit.",
-            totalRequirementsCount = 15,
-            completedRequirementsCount = 8
+            totalRequirementsCount = 10,
+            completedRequirementsCount = 4
         ),
         TenderEntity(
             id = "tender_103",
@@ -54,9 +54,36 @@ object SampleDataGenerator {
             estimatedValueUsd = 6200000.0,
             status = TenderStatus.DRAFT,
             notes = "Heavy pilling works, soil stabilization, asphalt access roads and stormwater drainage installation.",
-            totalRequirementsCount = 20,
-            completedRequirementsCount = 4
+            totalRequirementsCount = 14,
+            completedRequirementsCount = 2
         )
+    )
+
+    val sampleChecklistItems = listOf(
+        // Administrative
+        TenderChecklistItemEntity("req_1", "tender_101", "Administrative", "Certificate of Incorporation / Registration", "Certified copy of company registration certificate", true, isRequired = true, isCritical = true, supportingDocName = "Apex_Registration_2026.pdf"),
+        TenderChecklistItemEntity("req_2", "tender_101", "Administrative", "Valid Tax Compliance Certificate", "KRA / Tax Authority valid clearance certificate", true, isRequired = true, isCritical = true, supportingDocName = "Tax_Compliance_2026.pdf"),
+        TenderChecklistItemEntity("req_3", "tender_101", "Administrative", "CR12 / Official Directors List", "Search list of directors issued within last 6 months", true, isRequired = true, isCritical = false, supportingDocName = "CR12_Directors.pdf"),
+        TenderChecklistItemEntity("req_4", "tender_101", "Administrative", "Single Business Permit", "Valid county / municipal business operation license", false, isRequired = true, isCritical = false),
+
+        // Technical
+        TenderChecklistItemEntity("req_5", "tender_101", "Technical", "Company Technical Profile", "Detailed company profile outlining civil engineering experience", true, isRequired = true, isCritical = false, supportingDocName = "Apex_Corporate_Profile_2026.pdf"),
+        TenderChecklistItemEntity("req_6", "tender_101", "Technical", "Method Statement & Work Sequence", "Detailed methodology for pipe laying / structural works", true, isRequired = true, isCritical = true, supportingDocName = "Method_Statement_Ductile_Iron.docx"),
+        TenderChecklistItemEntity("req_7", "tender_101", "Technical", "Key Personnel CVs & Practicing Licenses", "Resident Engineer, Site Agent & Safety Officer CVs", false, isRequired = true, isCritical = true),
+        TenderChecklistItemEntity("req_8", "tender_101", "Technical", "Equipment Ownership / Lease Agreements", "Excavators, batching plant, dump trucks logbooks", false, isRequired = true, isCritical = false),
+
+        // Financial
+        TenderChecklistItemEntity("req_9", "tender_101", "Financial", "Audited Financial Statements (Last 3 Years)", "Signed balance sheets & profit/loss statements", true, isRequired = true, isCritical = true, supportingDocName = "Audited_Accounts_2023_2025.pdf"),
+        TenderChecklistItemEntity("req_10", "tender_101", "Financial", "Bid Security / Bank Guarantee ($90,000)", "Original bank guarantee from reputable commercial bank", false, isRequired = true, isCritical = true),
+        TenderChecklistItemEntity("req_11", "tender_101", "Financial", "Priced Bill of Quantities (BOQ)", "Duly filled, stamped & signed pricing schedule", true, isRequired = true, isCritical = true, supportingDocName = "BOQ_Water_Supply_Works.xlsx"),
+
+        // Submission
+        TenderChecklistItemEntity("req_12", "tender_101", "Submission", "Form of Tender Signed & Stamped", "Official tender form with total contract bid amount", false, isRequired = true, isCritical = true)
+    )
+
+    val sampleTenderNotes = listOf(
+        TenderNoteEntity("note_1", "tender_101", "Clarification #1 received from Ministry of Water: Section 3.02 ductile iron fittings can be Grade K9 or K12.", "Clarification", System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L)),
+        TenderNoteEntity("note_2", "tender_101", "Internal review: Ensure Bid Bond of $90,000 is requested from Equity Bank by Tuesday.", "Internal Review", System.currentTimeMillis() - (1 * 24 * 60 * 60 * 1000L))
     )
 
     val sampleProjects = listOf(
@@ -70,12 +97,12 @@ object SampleDataGenerator {
             expectedCompletionEpochMs = System.currentTimeMillis() + (180 * 24 * 60 * 60 * 1000L),
             status = ProjectStatus.IN_PROGRESS,
             progressPercent = 0.42f,
-            totalTasksCount = 36,
-            completedTasksCount = 15
+            totalTasksCount = 4,
+            completedTasksCount = 2
         ),
         ProjectEntity(
             id = "proj_02",
-            name = "Savannah Heights 12-Story Structural Reinforced Concrete Frame",
+            name = "Savannah Heights 12-Story Structural Frame",
             clientName = "Savannah Real Estate Developers",
             location = "Westlands, Nairobi",
             projectValueUsd = 8900000.0,
@@ -83,9 +110,42 @@ object SampleDataGenerator {
             expectedCompletionEpochMs = System.currentTimeMillis() + (90 * 24 * 60 * 60 * 1000L),
             status = ProjectStatus.IN_PROGRESS,
             progressPercent = 0.68f,
-            totalTasksCount = 52,
-            completedTasksCount = 35
+            totalTasksCount = 5,
+            completedTasksCount = 3
         )
+    )
+
+    val sampleTasks = listOf(
+        ProjectTaskEntity("task_1", "proj_01", "Excavation for Main Sewerage Treatment Tank A", "Trench excavation & soil compaction to 1.5m depth", "Eng. John Otieno", System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L), System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L), "Completed", 1.0f, "High", "Verified by Resident Engineer"),
+        ProjectTaskEntity("task_2", "proj_01", "Pouring C30 Structural Concrete Foundation Slab", "Pour 45m³ ready-mix C30 concrete with vibrating pokers", "Foreman James", System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L), System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000L), "Completed", 1.0f, "High", "75mm Slump test passed"),
+        ProjectTaskEntity("task_3", "proj_01", "Curing Foundation & Slump Test Cube Testing", "7-day & 28-day cube strength tests at lab", "Lab Tech Mercy", System.currentTimeMillis(), System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000L), "In Progress", 0.3f, "Medium", "Curing hessian damp sheets placed"),
+        ProjectTaskEntity("task_4", "proj_01", "Delivery & Lowering of 450mm Ductile Iron Pipes", "Lowering pipe sections using 20T excavator", "Logistics Team", System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000L), System.currentTimeMillis() + (14 * 24 * 60 * 60 * 1000L), "Not Started", 0.0f, "Medium")
+    )
+
+    val sampleDiaryEntries = listOf(
+        SiteDiaryEntryEntity(
+            id = "diary_1",
+            projectId = "proj_01",
+            entryDateEpochMs = System.currentTimeMillis() - (1 * 24 * 60 * 60 * 1000L),
+            weather = "Clear & Sunny (28°C)",
+            sitePersonnelSummary = "1 Site Agent, 1 Quality Eng, 4 Pipe Fitters, 18 Labourers",
+            plantEquipmentSummary = "2x Excavators 20T, 1x Batching Plant, 2x Plate Compactors",
+            materialsDelivered = "120 Bags Cement (50kg), 40 Tons Sand, 60 Tons Aggregates",
+            workPerformed = "Poured 45m³ of C30 concrete for Tank A foundation slab.",
+            quantitiesMeasured = "45 m³ Concrete poured, 120m Granular bedding placed",
+            visitors = "Eng. Kamau (Superintending Engineer)",
+            instructionsReceived = "Ensure 28-day curing period maintained before wall shuttering.",
+            delays = "30-min delay in ready-mix truck delivery due to traffic.",
+            safetyObservations = "100% PPE compliance. Zero site accidents.",
+            qualityObservations = "Concrete slump measured at 75mm (within 70-90mm spec).",
+            issues = "Minor honeycombing on column C4 base.",
+            generalNotes = "Site progress on schedule."
+        )
+    )
+
+    val sampleIssues = listOf(
+        ProjectIssueEntity("issue_1", "proj_01", "Minor honeycombing on column C4 foundation pour", "Superficial voiding observed after formwork stripping.", "Quality", "Minor", System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L), "Eng. John Otieno", "In Progress", System.currentTimeMillis() + (2 * 24 * 60 * 60 * 1000L), "Apply high-strength non-shrink grout (Sika Grout 214) under RE supervision."),
+        ProjectIssueEntity("issue_2", "proj_01", "Water ingress in West trench after heavy morning rain", "Water accumulation at trench section 2+400 requiring dewatering pumps.", "Weather", "Major", System.currentTimeMillis() - (1 * 24 * 60 * 60 * 1000L), "Foreman James", "Open", System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000L))
     )
 
     val sampleDocuments = listOf(

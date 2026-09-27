@@ -27,8 +27,23 @@ class StructIQApplication : Application() {
                 val tenderDao = database.tenderDao()
                 SampleDataGenerator.sampleTenders.forEach { tenderDao.insertTender(it) }
 
+                val checklistDao = database.tenderChecklistDao()
+                SampleDataGenerator.sampleChecklistItems.forEach { checklistDao.insertChecklistItem(it) }
+
+                val noteDao = database.tenderNoteDao()
+                SampleDataGenerator.sampleTenderNotes.forEach { noteDao.insertNote(it) }
+
                 val projectDao = database.projectDao()
                 SampleDataGenerator.sampleProjects.forEach { projectDao.insertProject(it) }
+
+                val taskDao = database.projectTaskDao()
+                SampleDataGenerator.sampleTasks.forEach { taskDao.insertTask(it) }
+
+                val diaryDao = database.siteDiaryEntryDao()
+                SampleDataGenerator.sampleDiaryEntries.forEach { diaryDao.insertDiaryEntry(it) }
+
+                val issueDao = database.projectIssueDao()
+                SampleDataGenerator.sampleIssues.forEach { issueDao.insertIssue(it) }
 
                 val documentDao = database.documentDao()
                 SampleDataGenerator.sampleDocuments.forEach { documentDao.insertDocument(it) }
